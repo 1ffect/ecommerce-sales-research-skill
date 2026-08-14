@@ -128,6 +128,19 @@ def source_platform(path: Path) -> str:
     return "Unknown"
 
 
+def platform_from_url(url: Any) -> str:
+    text = str(url or "").lower()
+    if "shop.tiktok.com" in text:
+        return "TikTok"
+    if "xiapibuy.com" in text or "shopee" in text:
+        return "Shopee"
+    if "lazada" in text:
+        return "Lazada"
+    if "amazon." in text:
+        return "Amazon"
+    return "Unknown"
+
+
 def product_id(url: Any) -> str:
     text = str(url or "")
     match = re.search(r"/product/(\d+)", text)
@@ -139,6 +152,9 @@ def product_id(url: Any) -> str:
     match = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{8,14})", text, re.I)
     if match:
         return f"amazon_{match.group(1).upper()}"
+    match = re.search(r"/products/i(\d+)-s(\d+)", text, re.I)
+    if match:
+        return f"lazada_{match.group(1)}_{match.group(2)}"
     return text
 
 
@@ -175,7 +191,9 @@ def read_raw(files: list[Path], root: Path, config: dict[str, Any]) -> pd.DataFr
         relative = file.relative_to(root) if file.is_relative_to(root) else file
         frame["来源文件"] = str(relative)
         frame["搜索词"] = file.parent.name
-        frame["平台"] = source_platform(file)
+        file_platform = source_platform(file)
+        frame["平台"] = frame["商品链接"].map(platform_from_url)
+        frame.loc[frame["平台"].eq("Unknown"), "平台"] = file_platform
         frame["商品ID"] = frame["商品链接"].map(product_id)
         frame["原始行号"] = range(2, len(frame) + 2)
         frames.append(frame)
@@ -335,15 +353,16 @@ def review_signals(row: pd.Series, config: dict[str, Any]) -> tuple[int, str, st
 
 
 def build_review_products(products: pd.DataFrame, config: dict[str, Any], limit: int) -> pd.DataFrame:
+    review_columns = ["复核优先级", "复核原因", "命中词摘要", "人工判断", "人工备注"]
     if limit <= 0 or products.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=[*review_columns, *products.columns])
     review = products.copy()
     signals = review.apply(lambda row: review_signals(row, config), axis=1, result_type="expand")
-    review.insert(0, "复核优先级", signals[0])
-    review.insert(1, "复核原因", signals[1])
-    review.insert(2, "命中词摘要", signals[2])
-    review.insert(3, "人工判断", "")
-    review.insert(4, "人工备注", "")
+    review.insert(0, review_columns[0], signals[0])
+    review.insert(1, review_columns[1], signals[1])
+    review.insert(2, review_columns[2], signals[2])
+    review.insert(3, review_columns[3], "")
+    review.insert(4, review_columns[4], "")
     return review.sort_values(
         ["复核优先级", "总销售额_CNY"],
         ascending=[False, False],
