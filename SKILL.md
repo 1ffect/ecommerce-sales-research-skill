@@ -5,60 +5,39 @@ description: Plan and process ecommerce product sales research across regions an
 
 # Ecommerce Sales Research
 
-## End-To-End Flow
+## Default Lightweight Flow
 
-Use this end-to-end flow when the user wants to research ecommerce sales for a product/category across one or more regions and platforms.
+Use this as the default cold-start path. Keep it conversational and lightweight unless the user asks for a full project folder or query workbook.
 
-1. Collect the research brief from the user:
+1. Ask for only the missing essentials:
    - product/category;
-   - target regions/countries;
-   - target platforms, such as Amazon, Shopee, TikTok Shop, Lazada, or another analytics platform;
-   - time period;
-   - currency and reporting grain, such as monthly item-level sales.
-2. Generate localized keywords:
-   - include local-language product names;
-   - include English marketplace terms;
-   - include common aliases, abbreviations, singular/plural variants, and feature-led phrases;
-   - keep the list broad enough for recall, then rely on cleaning rules to remove noise.
-3. Ask the user to confirm target platforms when unspecified. If the user gives multiple platforms, plan queries for all selected platforms.
-4. Create a query/download plan:
-   - one row per region/platform/keyword/date-range combination;
-   - include suggested category filters when known;
-   - include a destination folder and expected filename pattern;
-   - optionally generate `query_plan.xlsx` with `scripts/create_query_plan.py`.
-5. Prefer manual authenticated download:
-   - the user logs into the data platform;
-   - the user runs each query and exports `.xlsx`;
-   - the user places exports in the planned folder.
-   This is the default because login, CAPTCHA, permissions, session expiry, and UI changes are fragile.
-6. Use browser-assisted download only as an optional enhancement:
-   - require an already logged-in browser session;
-   - do not store credentials;
-   - automate only visible, user-authorized clicks and downloads.
-7. Run the first merge:
-   - if the product/category is new or uncertain, run without `config.json` first;
-   - merge all exports, dedupe by `商品链接 + 时间`, and produce product/monthly summaries without removing products.
-8. Create or tune `config.json`:
-   - define target terms, required term groups, exclude terms, accessory/non-main-unit terms, and optional low-price thresholds;
-   - keep rules conservative for unfamiliar categories;
-   - save config in the research folder for reproducibility.
-9. Run configured cleaning with `scripts/merge_clean_sales.py`.
-10. Calibrate rules using `待人工复核Top商品`:
-   - ask the user to review only the highest-impact rows;
-   - use `人工判断` values such as `保留`, `剔除`, or `待确认`;
-   - update `config.json` and rerun until the rule quality is acceptable.
-11. Produce the analysis:
-   - platform and region sales comparisons;
-   - top products, brands, and stores;
-   - price bands;
-   - monthly trends;
-   - keyword overlap and duplicate coverage;
-   - notable growth or decline signals.
+   - target region/country;
+   - target platform, such as Amazon, Shopee, TikTok Shop, Lazada, or the user's data platform;
+   - time period and currency if relevant.
+2. Return a short keyword list directly in chat:
+   - 5-12 keywords per region when possible;
+   - local-language names, English shopping terms, common aliases, singular/plural variants, and feature-led phrases;
+   - a short note on which keywords are broad vs. precise.
+3. Tell the user to log into their sales-data platform, search each keyword with the requested region/platform/date settings, export `.xlsx`, then upload the files in chat or tell Codex the folder path.
+4. When files arrive, run the first merge without `config.json` if the category is new or uncertain. Do not remove products in this pass.
+5. Draft a conservative `config.json` from the product definition and observed file contents.
+6. Run configured cleaning with `scripts/merge_clean_sales.py`.
+7. Ask the user to review `待人工复核Top商品` only, then update rules and rerun if needed.
+8. Produce the analysis: platform/region sales, top products/brands/stores, price bands, monthly trends, keyword overlap, and notable growth or decline.
 
 Responsibility split:
 
-- Codex: keyword planning, query checklist, folder structure, merge/dedupe, rule drafting, calibration workbook, cleaning, and analysis.
-- User: authenticated platform login/download, plus quick review of `待人工复核Top商品` for category-specific judgment.
+- Codex: localized keywords, download guidance, merge/dedupe, rule drafting, calibration workbook, cleaning, and analysis.
+- User: authenticated platform login/download/upload, plus quick review of `待人工复核Top商品` for category-specific judgment.
+
+## Project Mode
+
+Use project mode only for multi-region, multi-platform, repeatable research or when the user asks for a structured download workbook.
+
+1. Create a query/download plan with one row per region/platform/keyword/date-range combination.
+2. Include suggested category filters, destination folders, and expected filenames.
+3. Optionally generate `query_plan.xlsx` with `scripts/create_query_plan.py`.
+4. Keep `config.json`, raw exports, outputs, and review workbooks in the same research folder.
 
 ## Workflow
 
@@ -67,7 +46,7 @@ Use this skill for recurring marketplace research where a user starts from a pro
 1. Confirm the product/category, target regions, target platforms, time period, currency, and whether the user already has exports.
 2. If regions are known but keywords are not, propose localized marketplace keywords for each region. Include local language names, English shopping terms, common abbreviations, and product-function variants where useful.
 3. Ask which platforms to query, unless the user already specified them. Support one or more of Amazon, Shopee, TikTok Shop, Lazada, or the user's analytics platform.
-4. Create a query checklist with one row per region/platform/keyword/date-range combination. Include a suggested destination folder.
+4. In lightweight mode, give the keyword list directly in chat and ask the user to upload/download files. In project mode, create a query checklist with one row per region/platform/keyword/date-range combination.
 5. Prefer manual authenticated download: the user logs in, searches each query, exports `.xlsx`, and places files in the destination folder. This is the default because login, CAPTCHA, session expiry, and platform UI changes are fragile.
 6. Offer browser-assisted collection only when the user explicitly wants it and is already logged in. Do not store account credentials in the skill; only automate visible, user-authorized clicks/downloads.
 7. Inspect one raw `.xlsx` and any prior `outputs/` workbook before changing rules.
@@ -82,12 +61,13 @@ When the user gives only a product/category, produce:
 - `产品定义`: what is in-scope and out-of-scope.
 - `地区关键词`: 5-12 keywords per region where possible, mixing local language, English marketplace terms, common aliases, singular/plural, and high-intent function phrases.
 - `平台选择问题`: ask the user to choose Amazon, Shopee, TikTok Shop, Lazada, or another platform when unspecified.
-- `下载任务表`: region, platform, keyword, date range, category filter if known, expected filename/folder.
+- `下载说明`: tell the user to search each keyword in their logged-in sales-data platform, export `.xlsx`, then upload files in chat or provide a folder path.
+- `下载任务表`: create this only in project mode; include region, platform, keyword, date range, category filter if known, expected filename/folder.
 - `清洗初始规则`: conservative target terms, exclude terms, accessory terms, and uncertain points to review after the first merge.
 
 If precise local keyword habits matter and internet access is available, verify keyword variants with web search or marketplace/autocomplete evidence before finalizing the query plan. If browsing is unavailable, clearly label the keyword list as a first-pass suggestion to validate during search.
 
-Use this folder pattern unless the user gives another one:
+Use this folder pattern in project mode unless the user gives another one:
 
 ```text
 <region>-<product>/
