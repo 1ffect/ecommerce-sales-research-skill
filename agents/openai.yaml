@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ecommerce Sales Research"
+  short_description: "Merge and clean ecommerce sales exports"
+  default_prompt: "Use $ecommerce-sales-research to merge, dedupe, clean, and summarize ecommerce sales export files for a product research task."
+policy:
+  allow_implicit_invocation: true
