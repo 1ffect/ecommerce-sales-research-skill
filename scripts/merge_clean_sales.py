@@ -123,6 +123,8 @@ def source_platform(path: Path) -> str:
         return "TikTok"
     if "lazada" in name:
         return "Lazada"
+    if name.startswith("amazon") or "amazon" in name:
+        return "Amazon"
     return "Unknown"
 
 
@@ -134,6 +136,9 @@ def product_id(url: Any) -> str:
     match = re.search(r"L-i\.(\d+)\.(\d+)", text)
     if match:
         return f"shopee_{match.group(1)}_{match.group(2)}"
+    match = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{8,14})", text, re.I)
+    if match:
+        return f"amazon_{match.group(1).upper()}"
     return text
 
 
